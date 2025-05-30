@@ -1,7 +1,7 @@
 name: Build for MIPSLE
 
 on:
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:
 
 jobs:
   build:
@@ -10,12 +10,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: mipsel-unknown-linux-musl
-          override: true
+      - name: Clean up disk space
+        run: |
+          sudo apt-get clean
+          docker rmi $(docker images -q) || true
+          df -h
+
+      - name: Install Rust with mirror
+        env:
+          RUSTUP_DIST_SERVER: https://mirrors.ustc.edu.cn/rust-static
+          RUSTUP_UPDATE_ROOT: https://mirrors.ustc.edu.cn/rust-static/rustup
+        run: |
+          curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable
+          source $HOME/.cargo/env
+          rustup target add mipsel-unknown-linux-musl
+          rustc --version
+          cargo --version
 
       - name: Install cross
         run: cargo install cross
@@ -28,3 +38,10 @@ jobs:
         with:
           name: dysk-mipsle
           path: target/mipsel-unknown-linux-musl/release/dysk
+
+      - name: Debug on failure
+        if: failure()
+        run: |
+          rustup show
+          ls -la $HOME/.rustup
+          df -h

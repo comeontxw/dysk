@@ -15,7 +15,9 @@ jobs:
           sudo apt-get clean
           docker rmi $(docker images -q) || true
           df -h
-
+          
+      - name: Update rustup
+        run: rustup self update
       - name: Install Rust with mirror
         env:
           RUSTUP_DIST_SERVER: https://mirrors.ustc.edu.cn/rust-static

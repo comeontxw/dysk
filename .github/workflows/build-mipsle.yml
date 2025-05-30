@@ -1,4 +1,4 @@
-name: Build for MIPSLE
+name: Build for MIPSLE with Docker
 
 on:
   workflow_dispatch:
@@ -16,25 +16,11 @@ jobs:
           docker rmi $(docker images -q) || true
           df -h
 
-      - name: Install retry tool
-        run: cargo install cargo-retry
-
-      - name: Install Rust with mirror
-        env:
-          RUSTUP_DIST_SERVER: https://mirrors.tuna.tsinghua.edu.cn/rust-static
-          RUSTUP_UPDATE_ROOT: https://mirrors.tuna.tsinghua.edu.cn/rust-static/rustup
+      - name: Build with Docker
         run: |
-          cargo-retry --tries 3 curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable
-          source $HOME/.cargo/env
-          rustup target add mipsel-unknown-linux-musl
-          rustc --version
-          cargo --version
-
-      - name: Install cross
-        run: cargo install cross
-
-      - name: Build with cross
-        run: cross build --target mipsel-unknown-linux-musl --release
+          docker run --rm -v "$PWD":/work -w /work \
+            messense/rust-musl-cross:mipsel-linux-musl \
+            cargo build --target mipsel-unknown-linux-musl --release
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -45,6 +31,6 @@ jobs:
       - name: Debug on failure
         if: failure()
         run: |
-          rustup show
-          ls -la $HOME/.rustup
+          docker images
           df -h
+          ls -la target/mipsel-unknown-linux-musl/release/

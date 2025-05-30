@@ -1,0 +1,30 @@
+name: Build for MIPSLE
+
+on:
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: mipsel-unknown-linux-musl
+          override: true
+
+      - name: Install cross
+        run: cargo install cross
+
+      - name: Build with cross
+        run: cross build --target mipsel-unknown-linux-musl --release
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dysk-mipsle
+          path: target/mipsel-unknown-linux-musl/release/dysk

@@ -16,9 +16,9 @@ jobs:
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /swapfile
           df -h
 
-      - name: Install Rust with official source
+      - name: Install Rust with nightly toolchain
         run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
           source $HOME/.cargo/env
           rustup target add mipsel-unknown-linux-musl
           rustc --version
@@ -30,7 +30,7 @@ jobs:
           cat > $HOME/.cargo/config.toml <<EOF
           [source.crates-io]
           replace-with = 'ustc'
-
+          
           [source.ustc]
           registry = "sparse+https://mirrors.ustc.edu.cn/crates.io-index/"
           EOF
@@ -39,7 +39,15 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-mipsel-linux-gnu libc6-dev-mipsel-cross
-          sudo ln -s /usr/mipsel-linux-gnu/lib/ld.so.1 /lib/ld.so.1  # Fix linker issue
+          # 验证编译器安装
+          mipsel-linux-gnu-gcc --version || true
+          ls -l /usr/bin/mipsel-linux-gnu-*
+
+      - name: Setup cross-compile environment
+        run: |
+          echo "CC_mipsel_unknown_linux_musl=mipsel-linux-gnu-gcc" >> $GITHUB_ENV
+          echo "CARGO_TARGET_MIPSEL_UNKNOWN_LINUX_MUSL_LINKER=mipsel-linux-gnu-gcc" >> $GITHUB_ENV
+          echo "CARGO_TARGET_MIPSEL_UNKNOWN_LINUX_MUSL_RUSTFLAGS='-C link-arg=-Wl,-melf32ltsmip'" >> $GITHUB_ENV
 
       - name: Cache cargo dependencies
         uses: actions/cache@v3
@@ -51,9 +59,6 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build with custom flags
-        env:
-          CARGO_TARGET_MIPSEL_UNKNOWN_LINUX_MUSL_LINKER: "mipsel-linux-gnu-gcc"
-          CC_mipsel_unknown_linux_musl: "mipsel-linux-gnu-gcc"
         run: |
           source $HOME/.cargo/env
           cargo build --target mipsel-unknown-linux-musl --release
@@ -68,7 +73,9 @@ jobs:
         if: failure()
         run: |
           rustup show
-          ls -la $HOME/.cargo
-          mipsel-linux-gnu-gcc --version
+          rustup target list | grep mipsel
+          which mipsel-linux-gnu-gcc || true
+          mipsel-linux-gnu-gcc --version || true
+          find /usr -name '*mipsel*' 2>/dev/null
           df -h
           cargo tree
